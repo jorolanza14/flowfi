@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+.font-display {
+  font-family: var(--font-fredoka), ui-rounded, sans-serif;
+}
+
+body {
+  font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  background-color: #FFF9EC;
+  background-image: radial-gradient(#E8DEC8 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+}
+
+.kawaii-card {
+  background-color: #FFFFFF;
+  border: 3px solid #2B252C;
+  border-radius: 1.5rem;
+  box-shadow: 0 4px 0 #2B252C;
+}
+
+.squishy-btn {
+  border: 3px solid #2B252C;
+  box-shadow: 0 4px 0 #2B252C;
+  transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.1s ease;
+}
+
+.squishy-btn:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #2B252C;
+}
