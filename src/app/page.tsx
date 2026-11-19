@@ -12,6 +12,8 @@ import { AuthGate } from '@/components/AuthGate';
 import { TransactionType } from '@/types/ledger';
 
 const SESSION_KEY = 'flowfi_session_token';
+const PAYDAY_MODE_KEY = 'flowfi_has_payday';
+const DAILY_CAP_KEY = 'flowfi_manual_daily_cap';
 
 function FlowfiDashboard({
   token,
@@ -22,12 +24,24 @@ function FlowfiDashboard({
 }) {
   const dashboard = useQuery(api.flowfi.getDashboard, { token });
   const toggleAllowance = useMutation(api.flowfi.toggleWalletAllowance);
+  const setWalletBalance = useMutation(api.flowfi.setWalletBalance);
+  const resetAllWallets = useMutation(api.flowfi.resetAllWallets);
   const logEntry = useMutation(api.flowfi.logLedgerEntry);
   const signOutMutation = useMutation(api.flowfi.signOut);
 
+  const [hasPayday, setHasPayday] = useState(false);
   const [daysLeft, setDaysLeft] = useState(7);
+  const [manualDailyLimit, setManualDailyLimit] = useState(150);
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    const savedMode = localStorage.getItem(PAYDAY_MODE_KEY);
+    if (savedMode === 'true') setHasPayday(true);
+
+    const savedCap = Number(localStorage.getItem(DAILY_CAP_KEY));
+    if (savedCap > 0) setManualDailyLimit(savedCap);
+  }, []);
 
   useEffect(() => {
     if (dashboard === null) {
@@ -59,10 +73,34 @@ function FlowfiDashboard({
     .reduce((sum, w) => sum + Number(w.balance), 0);
 
   const startOfDayPool = spendablePool + spentToday;
-  const dailyLimit = Math.max(0, startOfDayPool / Math.max(1, daysLeft));
+  const dailyLimit = hasPayday
+    ? Math.max(0, startOfDayPool / Math.max(1, daysLeft))
+    : manualDailyLimit;
+
+  const handleTogglePaydayMode = (nextMode: boolean) => {
+    setHasPayday(nextMode);
+    localStorage.setItem(PAYDAY_MODE_KEY, String(nextMode));
+  };
+
+  const handleChangeManualDailyLimit = (nextLimit: number) => {
+    setManualDailyLimit(nextLimit);
+    localStorage.setItem(DAILY_CAP_KEY, String(nextLimit));
+  };
 
   const handleToggleAllowance = async (walletId: string) => {
     await toggleAllowance({ token, walletId: walletId as Id<'wallets'> });
+  };
+
+  const handleSetBalance = async (walletId: string, balance: number) => {
+    await setWalletBalance({
+      token,
+      walletId: walletId as Id<'wallets'>,
+      balance,
+    });
+  };
+
+  const handleResetAll = async () => {
+    await resetAllWallets({ token });
   };
 
   const handleSubmitEntry = async (entry: {
@@ -107,7 +145,7 @@ function FlowfiDashboard({
             Flowfi 🪙
           </h1>
           <p className="text-xs font-bold text-[#6E6570]">
-            Pool: ₱{spendablePool.toLocaleString('en-PH')} • Spent today: ₱{spentToday.toLocaleString('en-PH')}
+            Bank/Pool: ₱{spendablePool.toLocaleString('en-PH')} • Spent today: ₱{spentToday.toLocaleString('en-PH')}
           </p>
         </div>
 
@@ -123,10 +161,15 @@ function FlowfiDashboard({
       </header>
 
       <SafeSpendRing
+        spendablePool={spendablePool}
         dailyLimit={dailyLimit}
         spentToday={spentToday}
+        hasPayday={hasPayday}
+        onTogglePaydayMode={handleTogglePaydayMode}
         daysLeft={daysLeft}
         onChangeDaysLeft={setDaysLeft}
+        manualDailyLimit={manualDailyLimit}
+        onChangeManualDailyLimit={handleChangeManualDailyLimit}
       />
 
       <WalletGrid
@@ -134,6 +177,8 @@ function FlowfiDashboard({
         selectedWalletId={selectedWalletId}
         onSelectWallet={setSelectedWalletId}
         onToggleAllowance={handleToggleAllowance}
+        onSetBalance={handleSetBalance}
+        onResetAll={handleResetAll}
       />
 
       <section className="mt-5">
