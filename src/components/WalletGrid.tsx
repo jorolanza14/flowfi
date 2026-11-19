@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Check, Lock, Pencil, RotateCcw, Sparkles } from 'lucide-react';
 import { Wallet } from '@/types/ledger';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface WalletGridProps {
   wallets: Wallet[];
@@ -24,6 +25,7 @@ export function WalletGrid({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftValue, setDraftValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirmZeroOpen, setConfirmZeroOpen] = useState(false);
 
   const startEditing = (wallet: Wallet) => {
     setEditingId(wallet.id);
@@ -45,14 +47,14 @@ export function WalletGrid({
   return (
     <section className="mt-5">
       <div className="mb-2.5 flex items-center justify-between px-1">
-        <h2 className="font-display text-lg font-bold text-[#2B252C]">Wallet Buckets</h2>
+        <h2 className="font-display text-lg font-bold text-[#2B252C]">Pocket Wallets</h2>
         <div className="flex items-center gap-1.5">
           {wallets.some((w) => w.balance !== 0) && (
             <button
               type="button"
-              onClick={() => onResetAll()}
-              className="inline-flex items-center gap-1 rounded-full border-2 border-[#2B252C] bg-white px-2.5 py-0.5 text-[11px] font-extrabold text-[#6E6570] hover:text-[#2B252C]"
-              title="Set all wallets to ₱0"
+              onClick={() => setConfirmZeroOpen(true)}
+              className="inline-flex items-center gap-1 rounded-full border-2 border-[#2B252C] bg-white px-2.5 py-0.5 text-[11px] font-extrabold text-[#6E6570] transition hover:text-[#2B252C]"
+              title="Reset all wallets to ₱0"
             >
               <RotateCcw className="h-3 w-3" />
               <span>Zero all</span>
@@ -64,7 +66,7 @@ export function WalletGrid({
               onClick={() => onSelectWallet(null)}
               className="rounded-full border-2 border-[#2B252C] bg-[#FBBF24] px-2.5 py-0.5 text-[11px] font-extrabold text-[#2B252C]"
             >
-              Show all
+              All wallets
             </button>
           )}
         </div>
@@ -83,7 +85,7 @@ export function WalletGrid({
               }}
               style={{ backgroundColor: wallet.color }}
               className={`squishy-btn relative cursor-pointer rounded-3xl p-3.5 text-[#2B252C] ${
-                isSelected ? 'ring-4 ring-[#2B252C]/25' : ''
+                isSelected ? 'ring-4 ring-[#2B252C]/30' : ''
               }`}
             >
               <div className="flex items-center justify-between">
@@ -98,8 +100,8 @@ export function WalletGrid({
                     e.stopPropagation();
                     onToggleAllowance(wallet.id);
                   }}
-                  className="inline-flex items-center gap-1 rounded-full border-2 border-[#2B252C] bg-white/95 px-2 py-0.5 text-[10px] font-extrabold shadow-[0_2px_0_#2B252C]"
-                  title="Toggle whether this wallet counts toward daily pool"
+                  className="inline-flex items-center gap-1 rounded-full border-2 border-[#2B252C] bg-white/95 px-2 py-0.5 text-[10px] font-extrabold shadow-[0_2px_0_#2B252C] transition active:translate-y-0.5"
+                  title="Pool counts toward daily cap; Stash hides savings"
                 >
                   {wallet.include_in_allowance ? (
                     <>
@@ -121,7 +123,7 @@ export function WalletGrid({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#6E6570]">
-                    Balance
+                    Current
                   </span>
 
                   {isEditing ? (
@@ -137,7 +139,7 @@ export function WalletGrid({
                     <button
                       type="button"
                       onClick={() => startEditing(wallet)}
-                      className="rounded-md p-0.5 text-[#6E6570] hover:bg-[#FFF9EC] hover:text-[#2B252C]"
+                      className="rounded-md p-0.5 text-[#6E6570] transition hover:bg-[#FFF9EC] hover:text-[#2B252C]"
                       title="Edit exact balance"
                     >
                       <Pencil className="h-3 w-3" />
@@ -175,6 +177,17 @@ export function WalletGrid({
           );
         })}
       </div>
+
+      <ConfirmDialog
+        open={confirmZeroOpen}
+        title="Reset all wallets to ₱0?"
+        description="This sets GCash, Maya, BPI, and Cash balances to ₱0.00 so you can enter your exact starting amount."
+        confirmLabel="Yes, zero all"
+        cancelLabel="Cancel"
+        tone="danger"
+        onConfirm={onResetAll}
+        onCancel={() => setConfirmZeroOpen(false)}
+      />
     </section>
   );
 }
