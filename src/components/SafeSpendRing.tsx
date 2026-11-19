@@ -1,19 +1,30 @@
 'use client';
 
+import { Minus, Plus } from 'lucide-react';
 import { BaryaChan, MascotMood } from './BaryaChan';
 
 interface SafeSpendRingProps {
+  spendablePool: number;
   dailyLimit: number;
   spentToday: number;
+  hasPayday: boolean;
+  onTogglePaydayMode: (hasPayday: boolean) => void;
   daysLeft: number;
   onChangeDaysLeft: (days: number) => void;
+  manualDailyLimit: number;
+  onChangeManualDailyLimit: (limit: number) => void;
 }
 
 export function SafeSpendRing({
+  spendablePool,
   dailyLimit,
   spentToday,
+  hasPayday,
+  onTogglePaydayMode,
   daysLeft,
   onChangeDaysLeft,
+  manualDailyLimit,
+  onChangeManualDailyLimit,
 }: SafeSpendRingProps) {
   const remaining = dailyLimit - spentToday;
   const ratio = dailyLimit > 0 ? Math.max(0, Math.min(1, remaining / dailyLimit)) : 0;
@@ -32,8 +43,38 @@ export function SafeSpendRing({
   const mood: MascotMood =
     remaining < 0 ? 'dizzy' : ratio < 0.25 ? 'sweat' : 'happy';
 
+  const estimatedRunwayDays =
+    manualDailyLimit > 0 ? Math.floor(spendablePool / manualDailyLimit) : 0;
+
   return (
-    <section className="kawaii-card relative flex flex-col items-center px-5 pb-5 pt-6">
+    <section className="kawaii-card relative flex flex-col items-center px-5 pb-5 pt-4">
+      {/* Mode Switcher: No Payday Yet vs. Working Payday Mode */}
+      <div className="mb-4 flex w-full gap-1.5 rounded-2xl border-2 border-[#2B252C] bg-[#FFF9EC] p-1">
+        <button
+          type="button"
+          onClick={() => onTogglePaydayMode(false)}
+          className={`flex-1 rounded-xl py-1.5 text-xs font-extrabold transition ${
+            !hasPayday
+              ? 'border-2 border-[#2B252C] bg-[#FBBF24] text-[#2B252C]'
+              : 'text-[#6E6570]'
+          }`}
+        >
+          🌱 No Payday Yet
+        </button>
+        <button
+          type="button"
+          onClick={() => onTogglePaydayMode(true)}
+          className={`flex-1 rounded-xl py-1.5 text-xs font-extrabold transition ${
+            hasPayday
+              ? 'border-2 border-[#2B252C] bg-[#34D399] text-[#2B252C]'
+              : 'text-[#6E6570]'
+          }`}
+        >
+          💼 Payday Mode
+        </button>
+      </div>
+
+      {/* Ring */}
       <div className="relative h-[244px] w-[244px]">
         <div className="absolute -right-2.5 -top-2 z-20">
           <BaryaChan mood={mood} />
@@ -102,22 +143,62 @@ export function SafeSpendRing({
         </div>
       </div>
 
-      <div className="mt-4 w-full rounded-2xl border-2 border-[#2B252C] bg-[#FFF9EC] px-3.5 py-2.5">
-        <div className="flex items-center justify-between text-xs font-extrabold">
-          <span className="text-[#6E6570]">🗓️ Days until payday</span>
-          <span className="rounded-lg border-2 border-[#2B252C] bg-white px-2 py-0.5 font-display text-[#2B252C]">
-            {daysLeft} {daysLeft === 1 ? 'day' : 'days'}
-          </span>
+      {/* Bottom Control: Stretch Target (Unemployed) OR Payday Countdown (Working) */}
+      {hasPayday ? (
+        <div className="mt-4 w-full rounded-2xl border-2 border-[#2B252C] bg-[#FFF9EC] px-3.5 py-2.5">
+          <div className="flex items-center justify-between text-xs font-extrabold">
+            <span className="text-[#6E6570]">🗓️ Days until payday</span>
+            <span className="rounded-lg border-2 border-[#2B252C] bg-white px-2 py-0.5 font-display text-[#2B252C]">
+              {daysLeft} {daysLeft === 1 ? 'day' : 'days'}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={15}
+            value={daysLeft}
+            onChange={(e) => onChangeDaysLeft(Number(e.target.value))}
+            className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-lg border-2 border-[#2B252C] bg-[#FDE68A] accent-[#2B252C]"
+          />
         </div>
-        <input
-          type="range"
-          min={1}
-          max={15}
-          value={daysLeft}
-          onChange={(e) => onChangeDaysLeft(Number(e.target.value))}
-          className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-lg border-2 border-[#2B252C] bg-[#FDE68A] accent-[#2B252C]"
-        />
-      </div>
+      ) : (
+        <div className="mt-4 w-full rounded-2xl border-2 border-[#2B252C] bg-[#FFF9EC] px-3.5 py-2.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="block text-xs font-extrabold text-[#2B252C]">
+                🎯 Daily Stretch Cap
+              </span>
+              <span className="text-[11px] font-bold text-[#6E6570]">
+                {spendablePool > 0
+                  ? `Bank lasts ~${estimatedRunwayDays} ${estimatedRunwayDays === 1 ? 'day' : 'days'}`
+                  : 'Tap ✏️ on a wallet to enter bank balance'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => onChangeManualDailyLimit(Math.max(25, manualDailyLimit - 25))}
+                className="squishy-btn flex h-8 w-8 items-center justify-center rounded-xl bg-white"
+                title="Decrease daily cap by ₱25"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <span className="min-w-[64px] rounded-xl border-2 border-[#2B252C] bg-white px-2 py-1 text-center font-display text-sm font-bold">
+                ₱{manualDailyLimit}
+              </span>
+              <button
+                type="button"
+                onClick={() => onChangeManualDailyLimit(manualDailyLimit + 25)}
+                className="squishy-btn flex h-8 w-8 items-center justify-center rounded-xl bg-white"
+                title="Increase daily cap by ₱25"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
