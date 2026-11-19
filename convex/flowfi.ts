@@ -136,7 +136,7 @@ export const getDashboard = query({
       .query("transactions")
       .withIndex("by_user_spent", (q) => q.eq("userId", userId))
       .order("desc")
-      .take(30);
+      .take(40);
 
     return {
       wallets: wallets
@@ -270,5 +270,46 @@ export const logLedgerEntry = mutation({
       note: args.note,
       spent_at: Date.now(),
     });
+  },
+});
+
+export const deleteLedgerEntry = mutation({
+  args: {
+    token: v.string(),
+    transactionId: v.id("transactions"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getUserIdFromToken(ctx, args.token);
+    if (!userId) throw new Error("Not authenticated");
+
+    const tx = await ctx.db.get(args.transactionId);
+    if (!tx || tx.userId !== userId) throw new Error("Transaction not found");
+
+    const source = await ctx.db.get(tx.walletId);
+    if (source && source.userId === userId) {
+      if (tx.type === "expense") {
+        await ctx.db.patch(source._id, {
+          balance: source.balance + (tx.amount + tx.fee),
+        });
+      } else if (tx.type === "income") {
+        await ctx.db.patch(source._id, {
+          balance: Math.max(0, source.balance - (tx.amount - tx.fee)),
+        });
+      } else if (tx.type === "transfer") {
+        await ctx.db.patch(source._id, {
+          balance: source.balance + (tx.amount + tx.fee),
+        });
+        if (tx.toWalletId) {
+          const dest = await ctx.db.get(tx.toWalletId);
+          if (dest && dest.userId === userId) {
+            await ctx.db.patch(dest._id, {
+              balance: Math.max(0, dest.balance - tx.amount),
+            });
+          }
+        }
+      }
+    }
+
+    await ctx.db.delete(args.transactionId);
   },
 });
