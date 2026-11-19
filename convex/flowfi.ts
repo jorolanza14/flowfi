@@ -54,10 +54,10 @@ export const signUp = mutation({
     });
 
     const defaults = [
-      { name: "GCash", slug: "gcash", balance: 1450, color: "#38BDF8", badge_emoji: "💙", include_in_allowance: true, sort_order: 1 },
-      { name: "Maya",  slug: "maya",  balance: 980,  color: "#34D399", badge_emoji: "💚", include_in_allowance: true, sort_order: 2 },
-      { name: "BPI",   slug: "bpi",   balance: 5200, color: "#FB7185", badge_emoji: "❤️", include_in_allowance: false, sort_order: 3 },
-      { name: "Cash",  slug: "cash",  balance: 420,  color: "#FBBF24", badge_emoji: "🪙", include_in_allowance: true, sort_order: 4 },
+      { name: "GCash", slug: "gcash", balance: 0, color: "#38BDF8", badge_emoji: "💙", include_in_allowance: true, sort_order: 1 },
+      { name: "Maya",  slug: "maya",  balance: 0, color: "#34D399", badge_emoji: "💚", include_in_allowance: true, sort_order: 2 },
+      { name: "BPI",   slug: "bpi",   balance: 0, color: "#FB7185", badge_emoji: "❤️", include_in_allowance: true, sort_order: 3 },
+      { name: "Cash",  slug: "cash",  balance: 0, color: "#FBBF24", badge_emoji: "🪙", include_in_allowance: true, sort_order: 4 },
     ];
 
     for (const w of defaults) {
@@ -181,6 +181,42 @@ export const toggleWalletAllowance = mutation({
     await ctx.db.patch(args.walletId, {
       include_in_allowance: !wallet.include_in_allowance,
     });
+  },
+});
+
+export const setWalletBalance = mutation({
+  args: {
+    token: v.string(),
+    walletId: v.id("wallets"),
+    balance: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getUserIdFromToken(ctx, args.token);
+    if (!userId) throw new Error("Not authenticated");
+
+    const wallet = await ctx.db.get(args.walletId);
+    if (!wallet || wallet.userId !== userId) throw new Error("Unauthorized");
+
+    await ctx.db.patch(args.walletId, {
+      balance: Math.max(0, args.balance),
+    });
+  },
+});
+
+export const resetAllWallets = mutation({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getUserIdFromToken(ctx, args.token);
+    if (!userId) throw new Error("Not authenticated");
+
+    const wallets = await ctx.db
+      .query("wallets")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    for (const w of wallets) {
+      await ctx.db.patch(w._id, { balance: 0 });
+    }
   },
 });
 
